@@ -1,8 +1,11 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/urfave/cli"
+	//"github.com/xeipuuv/gojsonschema"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"
@@ -11,10 +14,12 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const FlagDir = "dir"
-const FlagFilename = "filename"
+const FlagOutputDir = "output"
+const FlagStage = "stage"
 
 func main() {
 	app := initApp()
@@ -33,17 +38,23 @@ func initApp() *cli.App {
 	app.Author = "Alexander Pokhodyun (karbunkul)"
 	app.Email = "karbunkul@yourtask.ru"
 	app.Version = "0.0.1"
+	app.Copyright = "(c) Alexander Pokhodyun 2019"
 	app.EnableBashCompletion = true
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  FlagDir + ", d",
 			Value: "",
-			Usage: "путь к директории с файлом конфигурации по умолчанию текущая директория",
+			Usage: "path for search config file, default value current work directory",
 		},
 		cli.StringFlag{
-			Name:  FlagFilename + ", f",
-			Value: "smart-env",
-			Usage: "имя файла конфигурации без расширения файла",
+			Name:  FlagOutputDir + ", o",
+			Value: "",
+			Usage: "output directory, default value from " + FlagDir,
+		},
+		cli.StringFlag{
+			Name:  FlagStage + ", s",
+			Value: "",
+			Usage: "current stage for env values, don't use in production env",
 		},
 	}
 	// главное действие
@@ -52,11 +63,10 @@ func initApp() *cli.App {
 }
 
 // ищем путь к файлу конфигурации
-func findConfFile(dir string, name string) (string, error) {
+func findConfFile(dir string) (string, error) {
 	formats := [3]string{"yaml", "yml", "json"}
-
 	for _, format := range formats {
-		file := path.Join(dir, name+"."+format)
+		file := path.Join(dir, "smart-env."+format)
 		if _, err := os.Stat(file); !os.IsNotExist(err) {
 			return file, nil
 		}
@@ -93,19 +103,32 @@ func getConfigDir(param string) (string, error) {
 }
 
 // разбор флага config-name
-func getConfigName(param string) (string, error) {
+func getStageName(param string) (string, error) {
 	return param, nil
 }
 
+// главное действие утилиты
 func cliMainAction(c *cli.Context) error {
 	configDir, _ := getConfigDir(c.String(FlagDir))
-	configName, _ := getConfigName(c.String(FlagFilename))
-	configPath, _ := findConfFile(configDir, configName)
+	outputDir := getConfigOutputDir(c.String(FlagOutputDir), configDir)
+	configPath, _ := findConfFile(configDir)
+	stageName, _ := getStageName(c.String(FlagStage))
+	fmt.Println(stageName)
 	config, _ := loadConfig(configPath)
 	result, _ := checkVariables(config)
-
-	fmt.Println(result)
+	resultJson, _ := json.Marshal(result)
+	outputFile := path.Join(outputDir, "smart-env.vars.json")
+	if err := ioutil.WriteFile(outputFile, resultJson, 0775); err != nil {
+		log.Fatal(err)
+	}
 	return nil
+}
+
+func getConfigOutputDir(param string, configDir string) string {
+	if strings.Trim(param, "") == "" {
+		param = configDir
+	}
+	return param
 }
 
 // преобразовать строку в число
@@ -136,34 +159,44 @@ func convertToBool(value string) bool {
 }
 
 // проверка значений
-func checkVariables(config Config) (*Result, error) {
-	result := map[string]interface{}{}
+func checkVariables(config Config) (Result, error) {
+	vars := map[string]interface{}{}
 	for name, variable := range config.Variables {
 		value := os.Getenv(name)
+		if strings.Trim(value, "") == "" {
+			log.Fatal(errors.New("env " + name + " is empty"))
+		}
 		switch strings.ToLower(variable.ValueType) {
 		case "number", "int":
-			result[name] = convertToInt(value)
+			vars[name] = convertToInt(value)
 			break
 		case "float":
-			result[name] = convertToFloat(value)
+			vars[name] = convertToFloat(value)
 			break
 		case "bool", "boolean":
-			result[name] = convertToFloat(value)
+			vars[name] = convertToBool(value)
 			break
 		default:
-			result[name] = value
+			vars[name] = value
 			break
 		}
 	}
-	fmt.Println(result)
-	return nil, nil
+	result := Result{
+		Version:     "1.0",
+		Variables:   vars,
+		LastUpdated: time.Now().Unix(),
+	}
+	return result, nil
 }
 
+// структура файла с переменными
 type Result struct {
-	LastUpdated string
-	Variables   map[string]interface{}
+	Version     string                 `json:"version"`
+	LastUpdated int64                  `json:"lastUpdated"`
+	Variables   map[string]interface{} `json:"variables"`
 }
 
+// структура конфигурационного файла
 type Config struct {
 	Version   string `yaml:"version"`
 	Variables map[string]struct {
@@ -173,6 +206,7 @@ type Config struct {
 	Stages map[string]map[string]string `yaml:"stages"`
 }
 
+// загрузка конфигурационного файла
 func loadConfig(path string) (Config, error) {
 	data, _ := ioutil.ReadFile(path)
 	var config Config
