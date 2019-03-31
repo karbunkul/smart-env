@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/urfave/cli"
-	//"github.com/xeipuuv/gojsonschema"
+	"github.com/xeipuuv/gojsonschema"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"
@@ -166,19 +166,25 @@ func checkVariables(config Config) (Result, error) {
 		if strings.Trim(value, "") == "" {
 			log.Fatal(errors.New("env " + name + " is empty"))
 		}
+		var convertedValue interface{}
 		switch strings.ToLower(variable.ValueType) {
 		case "number", "int":
-			vars[name] = convertToInt(value)
+			convertedValue = convertToInt(value)
 			break
 		case "float":
-			vars[name] = convertToFloat(value)
+			convertedValue = convertToFloat(value)
 			break
 		case "bool", "boolean":
-			vars[name] = convertToBool(value)
+			convertedValue = convertToBool(value)
 			break
 		default:
-			vars[name] = value
+			convertedValue = value
 			break
+		}
+		if status, err := validateConstraints(variable.Constraints, convertedValue); status == true {
+			vars[name] = convertedValue
+		} else {
+			log.Fatal(err)
 		}
 	}
 	result := Result{
@@ -187,6 +193,23 @@ func checkVariables(config Config) (Result, error) {
 		LastUpdated: time.Now().Unix(),
 	}
 	return result, nil
+}
+
+// проверка ограничений
+func validateConstraints(constraints map[string]interface{}, value interface{}) (bool, error) {
+	schemaLoader := gojsonschema.NewGoLoader(constraints)
+	valueLoader := gojsonschema.NewGoLoader(value)
+	result, err := gojsonschema.Validate(schemaLoader, valueLoader)
+	if result != nil {
+		if result.Valid() {
+			return true, nil
+		} else {
+			log.Fatal(result.Errors())
+			return false, nil
+		}
+	} else {
+		return false, err
+	}
 }
 
 // структура файла с переменными
@@ -200,8 +223,8 @@ type Result struct {
 type Config struct {
 	Version   string `yaml:"version"`
 	Variables map[string]struct {
-		ValueType   string      `yaml:"valueType"`
-		Constraints interface{} `yaml:"constraints"`
+		ValueType   string                 `yaml:"valueType"`
+		Constraints map[string]interface{} `yaml:"constraints"`
 	} `yaml:"variables"`
 	Stages map[string]map[string]string `yaml:"stages"`
 }
