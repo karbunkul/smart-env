@@ -9,8 +9,12 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"strings"
 )
+
+const FlagDir = "dir"
+const FlagFilename = "filename"
 
 func main() {
 	app := initApp()
@@ -32,17 +36,12 @@ func initApp() *cli.App {
 	app.EnableBashCompletion = true
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
-			Name:  "env, e",
-			Value: "dev",
-			Usage: "загрузка переменных из окружения",
-		},
-		cli.StringFlag{
-			Name:  "config-dir, d",
+			Name:  FlagDir + ", d",
 			Value: "",
 			Usage: "путь к директории с файлом конфигурации по умолчанию текущая директория",
 		},
 		cli.StringFlag{
-			Name:  "config-name, f",
+			Name:  FlagFilename + ", f",
 			Value: "smart-env",
 			Usage: "имя файла конфигурации без расширения файла",
 		},
@@ -74,7 +73,10 @@ func getConfigDir(param string) (string, error) {
 	}
 	// полный путь из относительного
 	if absPath, _ := filepath.Abs(param); filepath.IsAbs(filepath.Dir(absPath)) == true {
-		fi, _ := os.Stat(absPath)
+		fi, err := os.Stat(absPath)
+		if err != nil {
+			log.Fatal(err)
+		}
 		if fi.Mode().IsDir() {
 			param = absPath
 		} else {
@@ -96,24 +98,24 @@ func getConfigName(param string) (string, error) {
 }
 
 func cliMainAction(c *cli.Context) error {
-	configDir, _ := getConfigDir(c.String("config-dir"))
-	configName, _ := getConfigName(c.String("config-name"))
+	configDir, _ := getConfigDir(c.String(FlagDir))
+	configName, _ := getConfigName(c.String(FlagFilename))
 
 	configPath, _ := findConfFile(configDir, configName)
 
 	data, _ := loadConfig(configPath)
-	fmt.Println(data.Variables)
 
+	fmt.Println(reflect.TypeOf(data.Stages["production"]["API_KEY"]))
 	return nil
 }
 
 type Config struct {
-	Version   string
-	Variables []struct {
-		Name   string
-		Schema interface{}
-	}
-	Stages interface{}
+	Version   string `yaml:"version"`
+	Variables map[string]struct {
+		ValueType   string      `yaml:"valueType"`
+		Constraints interface{} `yaml:"constraints"`
+	} `yaml:"variables"`
+	Stages map[string]map[string]string `yaml:"stages"`
 }
 
 func loadConfig(path string) (Config, error) {
