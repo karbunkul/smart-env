@@ -9,7 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -100,13 +100,68 @@ func getConfigName(param string) (string, error) {
 func cliMainAction(c *cli.Context) error {
 	configDir, _ := getConfigDir(c.String(FlagDir))
 	configName, _ := getConfigName(c.String(FlagFilename))
-
 	configPath, _ := findConfFile(configDir, configName)
+	config, _ := loadConfig(configPath)
+	result, _ := checkVariables(config)
 
-	data, _ := loadConfig(configPath)
-
-	fmt.Println(reflect.TypeOf(data.Stages["production"]["API_KEY"]))
+	fmt.Println(result)
 	return nil
+}
+
+// преобразовать строку в число
+func convertToInt(value string) int64 {
+	result, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return result
+}
+
+// преобразовать строку в число с плавающей точкой
+func convertToFloat(value string) float64 {
+	result, err := strconv.ParseFloat(value, 10)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return result
+}
+
+// преобразовать строку в булево значение
+func convertToBool(value string) bool {
+	result, err := strconv.ParseBool(value)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return result
+}
+
+// проверка значений
+func checkVariables(config Config) (*Result, error) {
+	result := map[string]interface{}{}
+	for name, variable := range config.Variables {
+		value := os.Getenv(name)
+		switch strings.ToLower(variable.ValueType) {
+		case "number", "int":
+			result[name] = convertToInt(value)
+			break
+		case "float":
+			result[name] = convertToFloat(value)
+			break
+		case "bool", "boolean":
+			result[name] = convertToFloat(value)
+			break
+		default:
+			result[name] = value
+			break
+		}
+	}
+	fmt.Println(result)
+	return nil, nil
+}
+
+type Result struct {
+	LastUpdated string
+	Variables   map[string]interface{}
 }
 
 type Config struct {
