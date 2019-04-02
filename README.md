@@ -31,6 +31,7 @@
  - ```go get -u github.com/urfave/cli```
  - ```go get -u gopkg.in/yaml.v2```
  - ```go get -u github.com/xeipuuv/gojsonschema```
+ - ```go get -u github.com/joho/godotenv```
  
 ## Запуск через nodemon
 
