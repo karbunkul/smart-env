@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"errors"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"
@@ -21,16 +22,16 @@ type Config struct {
 }
 
 // ищем путь к файлу конфигурации
-func FindConfFile(dir string) (string, error) {
-	formats := [3]string{"yaml", "yml", "json"}
+func FindConfFile(dir string) string {
+	formats := [3]string{"yaml", "yml"}
 	for _, format := range formats {
 		file := path.Join(dir, "smart-env."+format)
 		if _, err := os.Stat(file); !os.IsNotExist(err) {
-			return file, nil
+			return file
 		}
 	}
-	os.Exit(-1)
-	return "", nil
+	log.Fatal(errors.New("file configuration not find in " + dir))
+	return ""
 }
 
 // загрузка конфигурационного файла

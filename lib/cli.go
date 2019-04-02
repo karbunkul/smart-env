@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"github.com/joho/godotenv"
 	"github.com/urfave/cli"
 	"log"
 	"os"
@@ -9,7 +10,7 @@ import (
 	"strings"
 )
 
-const FlagDir = "dir"
+const FlagWorkDir = "dir"
 const FlagOutputDir = "output"
 const FlagEnvFile = "env"
 
@@ -20,31 +21,30 @@ func InitApp() *cli.App {
 	app.Usage = "Утилита проверки переменных окружения"
 	app.Author = "Alexander Pokhodyun (karbunkul)"
 	app.Email = "karbunkul@yourtask.ru"
-	app.Version = "0.0.1"
 	app.Copyright = "(c) Alexander Pokhodyun 2019"
 	app.EnableBashCompletion = true
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
-			Name:  FlagDir + ", d",
+			Name:  FlagWorkDir + ", d",
 			Value: "",
-			Usage: "path for search config file, default value current work directory",
+			Usage: "path for search config file, default value from option --" + FlagWorkDir,
 		},
 		cli.StringFlag{
 			Name:  FlagOutputDir + ", o",
 			Value: "",
-			Usage: "output directory, default value from " + FlagDir,
+			Usage: "output directory, default value from option --" + FlagWorkDir,
 		},
 		cli.StringFlag{
 			Name:  FlagEnvFile + ", e",
 			Value: "",
-			Usage: "file path for env file, default find .env from " + FlagDir,
+			Usage: "file path for env file, default find .env from option --" + FlagWorkDir,
 		},
 	}
 	return app
 }
 
-// разбор флага config-dir
-func GetConfigDir(param string) (string, error) {
+// разбор флага dir
+func GetWorkDir(param string) string {
 	if param == "" {
 		// если директория не задана то по умолчанию текущая директория
 		param, _ = os.Getwd()
@@ -63,21 +63,36 @@ func GetConfigDir(param string) (string, error) {
 	}
 	// проверяем существует ли директория
 	if _, err := os.Stat(param); !os.IsNotExist(err) {
-		return param, nil
+		return param
 	} else {
-		log.Println(err)
-		return "", err
+		log.Fatal(err)
 	}
+	return ""
 }
 
-// разбор флага config-name
-func GetStageName(param string) (string, error) {
-	return param, nil
-}
-
-func GetConfigOutputDir(param string, configDir string) string {
+func GetConfigOutputDir(param string, workDir string) string {
 	if strings.Trim(param, "") == "" {
-		param = configDir
+		param = workDir
 	}
 	return param
+}
+
+func LoadFromEnvFile(filepath string, workDir string) {
+	if filepath == "" {
+		envFilePath := path.Join(workDir, ".env")
+		if _, err := os.Stat(envFilePath); err == nil {
+			log.Println("load from enf file: " + envFilePath)
+			if err := godotenv.Load(envFilePath); err != nil {
+				log.Fatal(err)
+			}
+		}
+	} else {
+		if path.IsAbs(filepath) != true {
+			// если путь к файлу относительный то изменяем его на абсолютный на основе значения workDir
+			filepath = path.Join(workDir, path.Base(filepath))
+		}
+		if err := godotenv.Load(filepath); err != nil {
+			log.Fatal(err)
+		}
+	}
 }
