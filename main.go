@@ -7,9 +7,11 @@ import (
 	"os"
 )
 
+const appVersion = "0.0.1"
+
 func main() {
 	app := lib.InitApp()
-	app.Version = version()
+	app.Version = appVersion
 	app.Action = cliMainAction
 	err := app.Run(os.Args)
 	if err != nil {
@@ -34,8 +36,4 @@ func cliMainAction(c *cli.Context) error {
 	// сохраняем результат
 	lib.SaveResultsToFile(result, outputDir)
 	return nil
-}
-
-func version() string {
-	return "0.0.1"
 }

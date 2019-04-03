@@ -33,14 +33,18 @@ func CheckVariables(config Config) (Result, error) {
 			convertedValue = value
 			break
 		}
-		if status, err := ValidateConstraints(variable.Constraints, convertedValue); status == true {
-			vars[name] = convertedValue
+		if variable.Constraints != nil {
+			if status, err := ValidateConstraints(variable.Constraints, convertedValue); status == true {
+				vars[name] = convertedValue
+			} else {
+				log.Fatal(err)
+			}
 		} else {
-			log.Fatal(err)
+			vars[name] = convertedValue
 		}
 	}
 	result := Result{
-		Version:     "1.0",
+		Version:     ApiVersion,
 		Variables:   vars,
 		LastUpdated: time.Now().Unix(),
 	}

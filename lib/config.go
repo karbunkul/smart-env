@@ -16,7 +16,7 @@ type Config struct {
 	Version   string `yaml:"version"`
 	Variables map[string]struct {
 		ValueType   string                 `yaml:"valueType"`
-		Constraints map[string]interface{} `yaml:"constraints"`
+		Constraints map[string]interface{} `yaml:"constraints,omitempty"`
 	} `yaml:"variables"`
 	Stages map[string]map[string]string `yaml:"stages"`
 }

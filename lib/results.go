@@ -8,6 +8,8 @@ import (
 	"path"
 )
 
+const ApiVersion = "1.0"
+
 // структура файла с переменными
 type Result struct {
 	Version     string                 `json:"version"`
