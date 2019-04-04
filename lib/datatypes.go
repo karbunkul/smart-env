@@ -12,35 +12,46 @@ import (
 
 // проверка значений
 func CheckVariables(config Config) (Result, error) {
-	vars := map[string]interface{}{}
+	vars := map[string]ResultVariable{}
 	for name, variable := range config.Variables {
 		value := os.Getenv(name)
 		if strings.Trim(value, "") == "" {
 			log.Fatal(errors.New("env " + name + " is empty"))
 		}
 		var convertedValue interface{}
-		switch strings.ToLower(variable.ValueType) {
+		var castToType string
+		switch strings.ToLower(variable.CastTo) {
 		case "number", "int":
 			convertedValue = convertToInt(value)
+			castToType = "number"
 			break
 		case "float":
 			convertedValue = convertToFloat(value)
+			castToType = "float"
 			break
 		case "bool", "boolean":
 			convertedValue = convertToBool(value)
+			castToType = "boolean"
 			break
 		default:
 			convertedValue = value
+			castToType = "string"
 			break
 		}
 		if variable.Constraints != nil {
 			if status, err := ValidateConstraints(variable.Constraints, convertedValue); status == true {
-				vars[name] = convertedValue
+				vars[name] = ResultVariable{
+					Type:  castToType,
+					Value: convertedValue,
+				}
 			} else {
 				log.Fatal(err)
 			}
 		} else {
-			vars[name] = convertedValue
+			vars[name] = ResultVariable{
+				Type:  castToType,
+				Value: convertedValue,
+			}
 		}
 	}
 	result := Result{

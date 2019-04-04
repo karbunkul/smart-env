@@ -12,9 +12,14 @@ const ApiVersion = "1.0"
 
 // структура файла с переменными
 type Result struct {
-	Version     string                 `json:"version"`
-	LastUpdated int64                  `json:"lastUpdated"`
-	Variables   map[string]interface{} `json:"variables"`
+	Version     string                    `json:"version"`
+	LastUpdated int64                     `json:"lastUpdated"`
+	Variables   map[string]ResultVariable `json:"variables"`
+}
+
+type ResultVariable struct {
+	Type  string
+	Value interface{}
 }
 
 func getResultsPath(workDir string) string {
