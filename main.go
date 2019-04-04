@@ -7,12 +7,20 @@ import (
 	"os"
 )
 
-const appVersion = "0.0.1"
+const appVersion = "0.0.2"
 
 func main() {
 	app := lib.InitApp()
 	app.Version = appVersion
 	app.Action = cliMainAction
+	app.Commands = []cli.Command{
+		{
+			Name:    "init",
+			Aliases: []string{"i"},
+			Usage:   "create configuration file in current directory",
+			Action:  initCommand,
+		},
+	}
 	err := app.Run(os.Args)
 	if err != nil {
 		log.Fatal(err)
@@ -35,5 +43,14 @@ func cliMainAction(c *cli.Context) error {
 	result, _ := lib.CheckVariables(config)
 	// сохраняем результат
 	lib.SaveResultsToFile(result, outputDir)
+	return nil
+}
+
+func initCommand(c *cli.Context) error {
+	if cwd, err := os.Getwd(); err != nil {
+		log.Fatal(err)
+	} else {
+		lib.GenerateConfigFile(cwd)
+	}
 	return nil
 }

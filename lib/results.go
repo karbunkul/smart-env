@@ -29,6 +29,7 @@ func SaveResultsToFile(result Result, workDir string) {
 	}
 }
 
+// удаляем файл с результатами предыдущего запуска утилиты
 func ClearPrevResults(workDir string) {
 	filePath := getResultsPath(workDir)
 	if _, err := os.Stat(filePath); !os.IsNotExist(err) {
