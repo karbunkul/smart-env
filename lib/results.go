@@ -18,8 +18,8 @@ type Result struct {
 }
 
 type ResultVariable struct {
-	Type  string
-	Value interface{}
+	Type  string      `json:"type"`
+	Value interface{} `json:"value"`
 }
 
 func getResultsPath(workDir string) string {

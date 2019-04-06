@@ -47,6 +47,7 @@ func cliMainAction(c *cli.Context) error {
 }
 
 func initCommand(c *cli.Context) error {
+	println(c.String(lib.FlagWorkDir))
 	if cwd, err := os.Getwd(); err != nil {
 		log.Fatal(err)
 	} else {
