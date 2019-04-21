@@ -3,6 +3,7 @@ package lib
 import (
 	"fmt"
 	"github.com/joho/godotenv"
+	"github.com/manifoldco/promptui"
 	"github.com/urfave/cli"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
@@ -16,6 +17,7 @@ import (
 const FlagWorkDir = "dir"
 const FlagOutputDir = "output"
 const FlagEnvFile = "env"
+const FlagForce = "force"
 
 // инициализация утилиты
 func InitApp() *cli.App {
@@ -31,6 +33,9 @@ func InitApp() *cli.App {
 			Name:  FlagWorkDir + ", d",
 			Value: "",
 			Usage: "path for search config file, default value from option --" + FlagWorkDir,
+		},
+		cli.BoolFlag{
+			Name: FlagForce + ", f",
 		},
 		cli.StringFlag{
 			Name:  FlagOutputDir + ", o",
@@ -101,9 +106,9 @@ func LoadFromEnvFile(filepath string, workDir string) {
 }
 
 // генерируем конфигурационный файл
-func GenerateConfigFile(workDir string) {
+func GenerateConfigFile(workDir string, force bool) {
 	fn := path.Join(workDir, "smart-env.yaml")
-	if _, err := os.Stat(fn); os.IsNotExist(err) {
+	if _, err := os.Stat(fn); force == true || os.IsNotExist(err) {
 		variables := map[string]ConfigVariable{
 			"FOO": {
 				CastTo: "string",
@@ -135,4 +140,37 @@ func GenerateConfigFile(workDir string) {
 	} else {
 		fmt.Println("config file already exist")
 	}
+}
+
+func GenerateEnvFile(config Config) (map[string]string, error) {
+	values := make(map[string]string)
+
+	for key := range config.Variables {
+		variable := config.Variables[key]
+
+		prompt := promptui.Prompt{
+			Label: key + "(" + variable.CastTo + ")",
+			Validate: func(input string) error {
+				if len(input) > 0 {
+					castedValue, _ := castToType(input, variable.CastTo)
+					if variable.Constraints != nil {
+						_, err := ValidateConstraints(variable.Constraints, castedValue.Value)
+
+						if err != nil {
+							return err
+						}
+					}
+					return nil
+				}
+
+				return nil
+
+			},
+		}
+
+		result, _ := prompt.Run()
+		println(result)
+	}
+
+	return values, nil
 }

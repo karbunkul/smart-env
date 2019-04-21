@@ -27,7 +27,7 @@ func getResultsPath(workDir string) string {
 }
 
 // сохранение результатов в файл
-func SaveResultsToFile(result Result, workDir string) {
+func SaveResultsToFile(result *Result, workDir string) {
 	resultJson, _ := json.Marshal(result)
 	if err := ioutil.WriteFile(getResultsPath(workDir), resultJson, 0775); err != nil {
 		log.Fatal(err)

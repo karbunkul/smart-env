@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-const appVersion = "0.0.2"
+const appVersion = "0.0.3"
 
 func main() {
 	app := lib.InitApp()
@@ -20,6 +20,11 @@ func main() {
 			Usage:   "create configuration file in current directory",
 			Action:  initCommand,
 		},
+		{
+			Name:   "env",
+			Usage:  "create env file in current directory",
+			Action: envCommand,
+		},
 	}
 	err := app.Run(os.Args)
 	if err != nil {
@@ -29,29 +34,38 @@ func main() {
 
 // главное действие утилиты
 func cliMainAction(c *cli.Context) error {
-	// параметры утилиты
-	workDir := lib.GetWorkDir(c.String(lib.FlagWorkDir))
-	outputDir := lib.GetConfigOutputDir(c.String(lib.FlagOutputDir), workDir)
+	workDir := lib.GetWorkDir(c.GlobalString(lib.FlagWorkDir))
 	// ищем и грузим конфигурационный файл
 	configPath := lib.FindConfFile(workDir)
 	config, _ := lib.LoadConfig(configPath)
 	// загрузка переменных окружения с файла
 	lib.LoadFromEnvFile(c.String(lib.FlagEnvFile), workDir)
 	// удаляем предыдущие результаты если файл существует
+	outputDir := lib.GetConfigOutputDir(c.GlobalString(lib.FlagOutputDir), workDir)
 	lib.ClearPrevResults(outputDir)
 	// конвертируем и проверяем переменные на ограничения
-	result, _ := lib.CheckVariables(config)
-	// сохраняем результат
-	lib.SaveResultsToFile(result, outputDir)
+	if result, err := lib.CheckVariables(config); err != nil {
+		log.Fatal(err)
+	} else {
+		// сохраняем результат
+		lib.SaveResultsToFile(result, outputDir)
+	}
 	return nil
 }
 
 func initCommand(c *cli.Context) error {
-	println(c.String(lib.FlagWorkDir))
-	if cwd, err := os.Getwd(); err != nil {
-		log.Fatal(err)
-	} else {
-		lib.GenerateConfigFile(cwd)
-	}
+	workDir := lib.GetWorkDir(c.GlobalString(lib.FlagWorkDir))
+	force := c.GlobalBool(lib.FlagForce)
+	lib.GenerateConfigFile(workDir, force)
+	return nil
+}
+
+func envCommand(c *cli.Context) error {
+	workDir := lib.GetWorkDir(c.GlobalString(lib.FlagWorkDir))
+	configPath := lib.FindConfFile(workDir)
+	config, _ := lib.LoadConfig(configPath)
+
+	lib.GenerateEnvFile(config)
+
 	return nil
 }
