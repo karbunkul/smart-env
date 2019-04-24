@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"errors"
 	"fmt"
 	"github.com/joho/godotenv"
 	"github.com/manifoldco/promptui"
@@ -149,10 +150,14 @@ func GenerateEnvFile(config Config) (map[string]string, error) {
 		variable := config.Variables[key]
 
 		prompt := promptui.Prompt{
-			Label: key + "(" + variable.CastTo + ")",
+			Label:     key + " (" + variable.CastTo + ")",
+			AllowEdit: true,
 			Validate: func(input string) error {
 				if len(input) > 0 {
-					castedValue, _ := castToType(input, variable.CastTo)
+					castedValue, err := castToType(input, variable.CastTo)
+					if err != nil {
+						return err
+					}
 					if variable.Constraints != nil {
 						_, err := ValidateConstraints(variable.Constraints, castedValue.Value)
 
@@ -162,14 +167,12 @@ func GenerateEnvFile(config Config) (map[string]string, error) {
 					}
 					return nil
 				}
-
-				return nil
-
+				return errors.New("value is empty")
 			},
 		}
 
 		result, _ := prompt.Run()
-		println(result)
+		values[key] = result
 	}
 
 	return values, nil

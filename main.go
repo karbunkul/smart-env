@@ -2,6 +2,7 @@ package main
 
 import (
 	"./lib"
+	"fmt"
 	"github.com/urfave/cli"
 	"log"
 	"os"
@@ -65,7 +66,11 @@ func envCommand(c *cli.Context) error {
 	configPath := lib.FindConfFile(workDir)
 	config, _ := lib.LoadConfig(configPath)
 
-	lib.GenerateEnvFile(config)
+	if values, err := lib.GenerateEnvFile(config); err != nil {
+		log.Fatal(err)
+	} else {
+		fmt.Println(values)
+	}
 
 	return nil
 }
